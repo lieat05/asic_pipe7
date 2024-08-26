@@ -1,6 +1,3 @@
-
-`include "vsrc/lieat_general_radix_4_sign_coder.v"
-`include "vsrc/lieat_general_radix_4_sign_detector.v"
 module lieat_general_radix_4_qds #(
 	// Put some parameters here, which can be changed by other modules.
 	parameter WIDTH = 32,
@@ -20,7 +17,7 @@ module lieat_general_radix_4_qds #(
 	input  logic [QUOT_ONEHOT_WIDTH-1:0] prev_quot_digit_i,
 	output logic [QUOT_ONEHOT_WIDTH-1:0] quot_digit_o
 );
-wire unused_ok =&{divisor_mul_neg_8,divisor_mul_neg_4,divisor_mul_8,divisor_mul_4,rem_carry_mul_16,rem_sum_mul_16};
+
 // ================================================================================================================================================
 // (local) parameters begin
 
@@ -165,5 +162,60 @@ u_sign_coder (
 	.quot_o(quot_digit_o)
 );
 
+wire unused_ok =&{divisor_mul_neg_8,divisor_mul_neg_4,divisor_mul_8,divisor_mul_4,rem_carry_mul_16,rem_sum_mul_16};
+endmodule
+
+module lieat_general_radix_4_sign_coder #(
+	// Put some parameters here, which can be changed by other modules.
+	
+)(
+	input  logic sd_m_neg_1_sign_i,
+	input  logic sd_m_neg_0_sign_i,
+	input  logic sd_m_pos_1_sign_i,
+	input  logic sd_m_pos_2_sign_i,
+	output logic [5-1:0] quot_o
+);
+
+// ==================================================================================================================================================
+// (local) params
+// ==================================================================================================================================================
+
+localparam QUOT_NEG_2 = 0;
+localparam QUOT_NEG_1 = 1;
+localparam QUOT_ZERO  = 2;
+localparam QUOT_POS_1 = 3;
+localparam QUOT_POS_2 = 4;
+
+logic [4-1:0] sign;
+
+// ==================================================================================================================================================
+// main codes
+// ==================================================================================================================================================
+
+// Just look at "TABLE 2" in 
+// "Digit-Recurrence Dividers with Reduced Logical Depth", Elisardo Antelo.
+assign sign = {sd_m_pos_2_sign_i, sd_m_pos_1_sign_i, sd_m_neg_0_sign_i, sd_m_neg_1_sign_i};
+assign quot_o[QUOT_POS_2] = (sign[3:1] == 3'b000);
+assign quot_o[QUOT_POS_1] = (sign[3:1] == 3'b100);
+assign quot_o[QUOT_ZERO ] = (sign[2:1] == 2'b10);
+assign quot_o[QUOT_NEG_1] = (sign[2:0] == 3'b110);
+assign quot_o[QUOT_NEG_2] = (sign[2:0] == 3'b111);
+endmodule
+
+module lieat_general_radix_4_sign_detector #(
+	// Put some parameters here, which can be changed by other modules.
+	
+)(
+	input  logic[7-1:0] rem_sum_msb_i,
+	input  logic[7-1:0] rem_carry_msb_i,
+	input  logic[7-1:0] parameter_i,
+	input  logic[7-1:0] divisor_i,
+	// input  cin_i,
+	output logic sign_o
+);
+logic [6-1:0] unused_bit;
+
+assign {sign_o, unused_bit} = rem_sum_msb_i + rem_carry_msb_i + parameter_i + divisor_i;
+// assign {sign_o, unused_bit} = rem_sum_msb_i + rem_carry_msb_i + parameter_i + divisor_i + {6'b0, cin_i};
 
 endmodule

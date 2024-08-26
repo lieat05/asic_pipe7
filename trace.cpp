@@ -20,12 +20,12 @@ void statistic() {
 // ================================================================================================================================================
 // MTRACE
 // ================================================================================================================================================
-void print_read_mtrace(uint32_t raddr, uint32_t rdata,char rlen){
-    printf(ANSI_FG_CYAN "Mtrace read   addr:%08x    data:%08x    len:%d\n" ANSI_NONE,raddr,rdata,rlen);
+void print_read_mtrace(uint32_t raddr, uint64_t rdata,char rlen){
+    printf(ANSI_FG_CYAN "Mtrace read   addr:%08x    data:%lx    len:%d\n" ANSI_NONE,raddr,rdata,rlen);
 }
 
-void print_write_mtrace(uint32_t waddr, uint32_t wdata,char wlen){
-    printf(ANSI_FG_CYAN "Mtrace write  addr:%08x    data:%08x    len:%d\n" ANSI_NONE,waddr,wdata,wlen);
+void print_write_mtrace(uint32_t waddr, uint64_t wdata,char wlen){
+    printf(ANSI_FG_CYAN "Mtrace write  addr:%08x    data:%lx    len:%d\n" ANSI_NONE,waddr,wdata,wlen);
 }
 // ================================================================================================================================================
 // ETRACE DPI-C

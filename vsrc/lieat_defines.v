@@ -1,10 +1,11 @@
-`define PC_DEFAULT 32'h80000000
-`define RGIDX_SIZE 5
-`define RGIDX_NUM 32
-`define CSR_IDX 12 
 `define XLEN 32
+`define AXILEN 64
+`define REG_IDX 5
+`define CSR_IDX 12 
 `define LZC_WIDTH 5
-`define IDX_WIDTH 5
+`define RGIDX_NUM 32
+`define PC_DEFAULT 32'h20000000
+
 `define INFOBUS_OP_WIDTH 3
 `define INFOBUS_OP       2:0
 `define INFOBUS_OP_ALU   3'd0
@@ -14,7 +15,7 @@
 `define INFOBUS_OP_MUL   3'd4
 `define INFOBUS_OP_VPU   3'd5
 
-`define INFOBUS_ALU_WIDTH 20
+`define INFOBUS_ALU_WIDTH 19
 `define INFOBUS_ALU_RV32  3
 `define INFOBUS_ALU_ADD   4
 `define INFOBUS_ALU_SUB   5
@@ -31,7 +32,6 @@
 `define INFOBUS_ALU_PC    16
 `define INFOBUS_ALU_NOP   17
 `define INFOBUS_ALU_EBRK  18
-`define INFOBUS_ALU_WFI   19
 
 `define INFOBUS_BJP_WIDTH  14
 `define INFOBUS_BJP_RV32   3
@@ -78,4 +78,3 @@
 `define INFOBUS_MUL_REM    10
 `define INFOBUS_MUL_REMU   11
 //`define INFOBUS_MUL_B2B    12
-

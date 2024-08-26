@@ -2,20 +2,22 @@
 #include "include/isa.h"
 #include "include/trace.h"
 
-uint32_t host_read(void *addr, int len) {
+uint64_t host_read(void *addr, int len) {
   switch (len) {
     case 1: return *(uint8_t  *)addr;
     case 2: return *(uint16_t *)addr;
     case 4: return *(uint32_t *)addr;
+    case 8: return *(uint64_t *)addr;
     default: MUXDEF(CONFIG_RT_CHECK, assert(0), return 0);
   }
 }
 
-void host_write(void *addr, int len, uint32_t data) {
+void host_write(void *addr, int len, uint64_t data) {
   switch (len) {
     case 1: *(uint8_t  *)addr = data; return;
     case 2: *(uint16_t *)addr = data; return;
     case 4: *(uint32_t *)addr = data; return;
+    case 8: *(uint64_t *)addr = data; return;
     IFDEF(CONFIG_RT_CHECK, default: assert(0));
   }
 }
@@ -44,7 +46,7 @@ long load_img() {
   Log("The image is %s, size = %ld", img_file, size);
 
   fseek(fp, 0, SEEK_SET);
-  int ret = fread(guest_to_host(CONFIG_MBASE), size, 1, fp);
+  int ret = fread(guest_to_host(CONFIG_PCSTART), size, 1, fp);
   assert(ret == 1);
 
   fclose(fp);
@@ -52,7 +54,7 @@ long load_img() {
 }
 
 void init_mem(){
-#if   defined(CONFIG_PMEM_MALLOC)
+#if defined(CONFIG_PMEM_MALLOC)
   pmem = malloc(CONFIG_MSIZE);
   assert(pmem);
 #endif
@@ -68,7 +70,7 @@ void init_mem(){
 // ================================================================================================================================================
 // DPI-C
 // ================================================================================================================================================
-extern "C" void pmem_read(uint32_t raddr,uint32_t* rdata,char rlen){	
+extern "C" void pmem_read(uint64_t raddr,uint64_t* rdata,char rlen){	
 	if(in_pmem(raddr)){
 		IFDEF(CONFIG_MTRACE,print_read_mtrace(raddr,*rdata,rlen););
     *rdata = host_read(guest_to_host(raddr),rlen);
@@ -80,8 +82,7 @@ extern "C" void pmem_read(uint32_t raddr,uint32_t* rdata,char rlen){
 	return;
 }
 
-int a = 0;
-extern "C" void pmem_write(uint32_t waddr,uint32_t wdata,char wlen){
+extern "C" void pmem_write(uint32_t waddr,uint64_t wdata,char wlen){
 	if(in_pmem(waddr)){
         IFDEF(CONFIG_MTRACE,print_write_mtrace(waddr,wdata,wlen););
 		host_write(guest_to_host(waddr),wlen,wdata);
@@ -91,4 +92,20 @@ extern "C" void pmem_write(uint32_t waddr,uint32_t wdata,char wlen){
   IFDEF(CONFIG_DEVICE, mmio_write(waddr, wlen, wdata););
   IFDEF(CONFIG_DTRACE,print_write_mtrace(waddr,wdata,wlen););
 	return;
+}
+
+extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
+extern "C" void mrom_read(int32_t addr, int32_t *data) { 
+  *data = host_read(guest_to_host(addr),4);
+}
+extern "C" void read_inaddr(int32_t addr){
+  bool read_inmrom = (addr >= 0x20000000) && (addr <= 0x20001000);
+  bool read_inmem = (addr >= 0x0f000000) && (addr <= 0x10000fff);
+  if(addr == 0x0f0007f8)printf("raddr = %x\n",addr);
+  //assert(read_inmrom | read_inmem);
+}
+extern "C" void write_inaddr(int32_t addr){
+  bool write_insram = (addr >= 0x0f000000) && (addr <= 0x10000fff);
+  if(addr == 0x0f0007f8)printf("waddr = %x\n",addr);
+  //assert(write_insram);
 }

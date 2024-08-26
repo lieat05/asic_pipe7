@@ -1,21 +1,31 @@
 module lieat_idu_dec(
-  input  [`XLEN-1:0]       inst,
-  input                    prdt_taken,
+  input  [`XLEN-1:0]    inst,
+  input                 prdt_taken,
   
-  output                   id_rv32,
-  output                   id_rs1en,
-  output                   id_rs2en,
-  output                   id_rdwen,
-  output [`RGIDX_SIZE-1:0] id_rs1,
-  output [`RGIDX_SIZE-1:0] id_rs2,
-  output [`RGIDX_SIZE-1:0] id_rd,
-  output [`XLEN-1:0]       id_imm,
-  output [`XLEN-1:0]       id_infobus,
-  
-  output                   id_ilgl
+  output                id_rv32,
+  output                id_rs1en,
+  output                id_rs2en,
+  output                id_rdwen,
+  output [`REG_IDX-1:0] id_rs1,
+  output [`REG_IDX-1:0] id_rs2,
+  output [`REG_IDX-1:0] id_rd,
+  output [`XLEN-1:0]    id_imm,
+  output [`XLEN-1:0]    id_infobus,
+  output                id_ilgl
 );
+// ================================================================================================================================================
+// INST DECODE
+// ================================================================================================================================================
+wire [31:0] rv32_inst = inst;
 
-wire [6:0] opcode= rv32_inst[6:0];
+wire [6:0] rv32_func7 = rv32_inst[31:25];
+wire [4:0] rv32_rs2 = rv32_inst[24:20];
+wire [4:0] rv32_rs1 = rv32_inst[19:15];
+wire [4:0] rv32_rd  = rv32_inst[11:7];
+wire [6:0] opcode   = rv32_inst[6:0];
+// ================================================================================================================================================
+// OPCODE
+// ================================================================================================================================================
 wire opcode_1_0_11  = (opcode[1:0] == 2'b11);
 wire opcode_4_2_000 = (opcode[4:2] == 3'b000);
 wire opcode_4_2_001 = (opcode[4:2] == 3'b001);
@@ -29,25 +39,22 @@ wire opcode_6_5_00  = (opcode[6:5] == 2'b00);
 wire opcode_6_5_01  = (opcode[6:5] == 2'b01);
 //wire opcode_6_5_10  = (opcode[6:5] == 2'b10);
 wire opcode_6_5_11  = (opcode[6:5] == 2'b11);
-
-//--------------------rv32--------------------
-assign id_rv32 = (~opcode_4_2_111) & opcode_1_0_11;
-wire [31:0] rv32_inst = inst;
-
-wire [4:0] rv32_rs2   = rv32_inst[24:20];
-wire [4:0] rv32_rs1   = rv32_inst[19:15];
-wire [4:0] rv32_rd    = rv32_inst[11:7];
-
+// ================================================================================================================================================
+// RS1RS2RD
+// ================================================================================================================================================
 wire rv32_rs1x0 = (rv32_rs1 == 5'b00000);
 wire rv32_rs2x0 = (rv32_rs2 == 5'b00000);
 wire rv32_rdx0  = (rv32_rd  == 5'b00000);
-
-wire [6:0] rv32_func7 = rv32_inst[31:25];
+// ================================================================================================================================================
+// FUNC7
+// ================================================================================================================================================
 wire rv32_func7_0000000 = (rv32_func7 == 7'b0000000);
 wire rv32_func7_0000001 = (rv32_func7 == 7'b0000001);
 wire rv32_func7_0100000 = (rv32_func7 == 7'b0100000);
 wire rv32_func7_0100001 = (rv32_func7 == 7'b0100001);
-
+// ================================================================================================================================================
+// FUNC3
+// ================================================================================================================================================
 wire [2:0] rv32_func3 = rv32_inst[14:12];
 wire rv32_func3_000 = (rv32_func3 == 3'b000);
 wire rv32_func3_001 = (rv32_func3 == 3'b001);
@@ -57,7 +64,9 @@ wire rv32_func3_100 = (rv32_func3 == 3'b100);
 wire rv32_func3_101 = (rv32_func3 == 3'b101);
 wire rv32_func3_110 = (rv32_func3 == 3'b110);
 wire rv32_func3_111 = (rv32_func3 == 3'b111);
-
+// ================================================================================================================================================
+// INST TYPE
+// ================================================================================================================================================
 wire rv32_load     = opcode_6_5_00 & opcode_4_2_000 & opcode_1_0_11;
 //wire rv32_lb       = rv32_load   & rv32_func3_000;
 //wire rv32_lh       = rv32_load   & rv32_func3_001;
@@ -155,36 +164,48 @@ wire rv32_lui      = opcode_6_5_01 & opcode_4_2_101 & opcode_1_0_11;
 //wire rv32_op_32  = opcode_6_5_01 & opcode_4_2_110 & opcode_1_0_11; 
 //wire rv32_custom2= opcode_6_5_10 & opcode_4_2_110 & opcode_1_0_11; 
 //wire rv32_custom3= opcode_6_5_11 & opcode_4_2_110 & opcode_1_0_11; 
+// ================================================================================================================================================
+// ILGL
+// ================================================================================================================================================
+wire alu_op;
+wire bjp_op;
+wire lsu_op;
+wire csr_op;
+wire mul_op;
 
-//--------------------ILEGAL--------------------
 wire rv32_shift_ilgl = (rv32_slli | rv32_srli | rv32_srai) & (rv32_inst[25]);//should be 0
 wire rv32_all01_ilgl = (inst == 32'h0) | (inst == 32'hffffffff);
 wire op_ilgl         = ~(alu_op | bjp_op | lsu_op | csr_op | mul_op);
-
-
+// ================================================================================================================================================
+// RS
+// ================================================================================================================================================
 //lui auipc jal fence fencei ecall ebreak csrrwi csrrsi csrrci no need rs1 
-wire rv32_need_rs1 = (~rv32_rs1x0) & 
-                     (~rv32_lui)    & 
-                     (~rv32_auipc)  & 
-                     (~rv32_jal)    & 
-                     (~rv32_fence)  & 
-                     (~rv32_fencei) & 
-                     (~rv32_ecall)  & 
-                     (~rv32_ebreak) &
-                     (~rv32_csrrwi) & 
-                     (~rv32_csrrsi) & 
-                     (~rv32_csrrci);
+wire rv32_need_rs1 = 
+(~rv32_rs1x0)  & 
+(~rv32_lui)    & 
+(~rv32_auipc)  & 
+(~rv32_jal)    & 
+(~rv32_fence)  & 
+(~rv32_fencei) & 
+(~rv32_ecall)  & 
+(~rv32_ebreak) &
+(~rv32_csrrwi) & 
+(~rv32_csrrsi) & 
+(~rv32_csrrci);
 //branch store rv32_op need rs2
 wire rv32_need_rs2 = (~rv32_rs2x0) & ((rv32_branch) | (rv32_store) | (rv32_op));
 //branch store fence fence_i ecall ebreak no need rd
-wire rv32_need_rd  = (~rv32_rdx0)  & 
-                     (~rv32_branch) & 
-                     (~rv32_store)  & 
-                     (~rv32_fence)  & 
-                     (~rv32_fencei) & 
-                     (~rv32_ecall)  & 
-                     (~rv32_ebreak);
-
+wire rv32_need_rd  = 
+(~rv32_rdx0)   & 
+(~rv32_branch) & 
+(~rv32_store)  & 
+(~rv32_fence)  & 
+(~rv32_fencei) & 
+(~rv32_ecall)  & 
+(~rv32_ebreak);
+// ================================================================================================================================================
+// IMM
+// ================================================================================================================================================
 wire rv32_i = rv32_op_imm | rv32_jalr | rv32_load;
 wire rv32_u = rv32_lui | rv32_auipc;
 wire rv32_s = rv32_store;
@@ -198,15 +219,17 @@ wire [31:0] rv32_immu = {rv32_inst[31:12],12'b0};
 wire [31:0] rv32_imms = {{20{rv32_inst[31]}},rv32_inst[31:25],rv32_inst[11:7]};
 wire [31:0] rv32_immb = {{20{rv32_inst[31]}},rv32_inst[7],rv32_inst[30:25],rv32_inst[11:8],1'b0};
 wire [31:0] rv32_immj = {{12{rv32_inst[31]}},rv32_inst[19:12],rv32_inst[20],rv32_inst[30:21],1'b0};
-wire [31:0] rv32_imm  = rv32_i ? rv32_immi :
-                        rv32_u ? rv32_immu :
-                        rv32_s ? rv32_imms :
-                        rv32_b ? rv32_immb :
-                        rv32_j ? rv32_immj : 32'h0;
-
-//--------------------IFOBUS--------------------
+wire [31:0] rv32_imm  = 
+({`XLEN{rv32_i}} & rv32_immi) |
+({`XLEN{rv32_u}} & rv32_immu) |
+({`XLEN{rv32_s}} & rv32_imms) |
+({`XLEN{rv32_b}} & rv32_immb) |
+({`XLEN{rv32_j}} & rv32_immj) ;
+// ================================================================================================================================================
+// INFOBUS
+// ================================================================================================================================================
 wire [`INFOBUS_ALU_WIDTH-1:0] alu_infobus;
-wire alu_op = (~rv32_shift_ilgl) & ( rv32_op_imm | rv32_op & (~rv32_func7_0000001) | rv32_auipc | rv32_lui | rv32_nop | rv32_wfi | rv32_ebreak);
+assign alu_op = (~rv32_shift_ilgl) & ( rv32_op_imm | rv32_op & (~rv32_func7_0000001) | rv32_auipc | rv32_lui | rv32_nop | rv32_wfi | rv32_ebreak);
 assign alu_infobus[`INFOBUS_OP        ] = `INFOBUS_OP_ALU;
 assign alu_infobus[`INFOBUS_ALU_RV32  ] = id_rv32;
 assign alu_infobus[`INFOBUS_ALU_ADD   ] = rv32_add | rv32_addi | rv32_auipc;
@@ -224,10 +247,9 @@ assign alu_infobus[`INFOBUS_ALU_IMM   ] = need_imm;
 assign alu_infobus[`INFOBUS_ALU_PC    ] = rv32_auipc;
 assign alu_infobus[`INFOBUS_ALU_NOP   ] = rv32_nop;
 assign alu_infobus[`INFOBUS_ALU_EBRK  ] = rv32_ebreak;
-assign alu_infobus[`INFOBUS_ALU_WFI   ] = rv32_wfi;
 
 wire [`INFOBUS_BJP_WIDTH-1:0] bjp_infobus;
-wire bjp_op = rv32_jal | rv32_jalr | rv32_branch | rv32_mret;
+assign bjp_op = rv32_jal | rv32_jalr | rv32_branch | rv32_mret;
 assign bjp_infobus[`INFOBUS_OP        ] = `INFOBUS_OP_BJP;
 assign bjp_infobus[`INFOBUS_BJP_RV32  ] = id_rv32;
 assign bjp_infobus[`INFOBUS_BJP_JUMP  ] = rv32_jal | rv32_jalr;
@@ -242,7 +264,7 @@ assign bjp_infobus[`INFOBUS_BJP_BXX   ] = rv32_branch;
 assign bjp_infobus[`INFOBUS_BJP_MRET  ] = rv32_mret;
 
 wire [`INFOBUS_LSU_WIDTH-1:0] lsu_infobus;
-wire lsu_op = rv32_load | rv32_store | rv32_fence | rv32_fencei;
+assign lsu_op = rv32_load | rv32_store | rv32_fence | rv32_fencei;
 wire [1:0] lsu_info_size  = id_rv32 ? rv32_func3[1:0] : 2'b10;
 wire       lsu_info_usign = id_rv32 ? rv32_func3[2]   : 1'b0;
 assign lsu_infobus[`INFOBUS_OP        ] = `INFOBUS_OP_LSU;
@@ -256,7 +278,7 @@ assign lsu_infobus[`INFOBUS_LSU_FENCE ] = rv32_fence;
 assign lsu_infobus[`INFOBUS_LSU_FENCEI] = rv32_fencei;
 
 wire [`INFOBUS_CSR_WIDTH-1:0] csr_infobus;
-wire csr_op = rv32_csr;
+assign csr_op = rv32_csr;
 assign csr_infobus[`INFOBUS_OP        ] = `INFOBUS_OP_CSR;
 assign csr_infobus[`INFOBUS_CSR_RV32  ] = id_rv32;
 assign csr_infobus[`INFOBUS_CSR_CSRRW ] = rv32_csrrw | rv32_csrrwi;
@@ -270,7 +292,7 @@ assign csr_infobus[`INFOBUS_CSR_CSRIDX] = rv32_inst[31:20];
 
 
 wire [`INFOBUS_MUL_WIDTH-1:0] mul_infobus;
-wire mul_op = rv32_op & rv32_func7_0000001;
+assign mul_op = rv32_op & rv32_func7_0000001;
 assign mul_infobus[`INFOBUS_OP        ] = `INFOBUS_OP_MUL;
 assign mul_infobus[`INFOBUS_MUL_RV32  ] = id_rv32    ;
 assign mul_infobus[`INFOBUS_MUL_MUL   ] = rv32_mul    ;   
@@ -281,7 +303,9 @@ assign mul_infobus[`INFOBUS_MUL_DIV   ] = rv32_div    ;
 assign mul_infobus[`INFOBUS_MUL_DIVU  ] = rv32_divu   ;
 assign mul_infobus[`INFOBUS_MUL_REM   ] = rv32_rem    ;
 assign mul_infobus[`INFOBUS_MUL_REMU  ] = rv32_remu   ;
-//--------------------OUTPUT--------------------
+// ================================================================================================================================================
+// OUTPUT SIGNAL
+// ================================================================================================================================================
 assign id_rs1     = id_rv32 ? rv32_rs1      : 0;
 assign id_rs2     = id_rv32 ? rv32_rs2      : 0;
 assign id_rd      = id_rv32 ? rv32_rd       : 0;
@@ -296,4 +320,5 @@ assign id_infobus = alu_op     ? {{(`XLEN-`INFOBUS_ALU_WIDTH){1'b0}},alu_infobus
                     csr_op     ? {{(`XLEN-`INFOBUS_CSR_WIDTH){1'b0}},csr_infobus} :
                     mul_op     ? {{(`XLEN-`INFOBUS_MUL_WIDTH){1'b0}},mul_infobus} : 0;
 assign id_ilgl   = rv32_all01_ilgl | rv32_shift_ilgl | op_ilgl;
+assign id_rv32 = (~opcode_4_2_111) & opcode_1_0_11;
 endmodule

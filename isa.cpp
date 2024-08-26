@@ -72,15 +72,6 @@ const static uint32_t img [] = {
   0x0000006f,          	//j	80000034 <_trm_init+0x1c>
 };
 
-static void restart() {
-  /* Set the initial program counter. */
-  cpu.pc = RESET_VECTOR;
-  
-  /* The zero register is always 0. */
-  cpu.gpr[0] = 0;
-}
-
 void init_isa() {
-  memcpy(guest_to_host(CONFIG_MBASE), img, sizeof(img));
-  restart();
- } 
+  memcpy(guest_to_host(CONFIG_PCSTART), img, sizeof(img));
+}

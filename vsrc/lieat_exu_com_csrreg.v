@@ -1,20 +1,26 @@
 module lieat_exu_com_csrreg(
-  input                 clk,
-  input                 rstn,
+  input                 clock,
+  input                 reset,
 
   input                 csr_ena,
   input                 csr_write,
   input                 csr_read,
-  input  [11:0]         csr_idx,
+  input  [`CSR_IDX-1:0] csr_idx,
   input  [`XLEN-1:0]    csr_wdata,
   output [`XLEN-1:0]    csr_rdata,
-  input  [11:0]         csr_idx2,
+  input  [`CSR_IDX-1:0] csr_idx2,
   input  [`XLEN-1:0]    csr_wdata2,
 
   input                 ifu_csr_ren,
-  input  [11:0]         ifu_csr_idx,
+  input  [`CSR_IDX-1:0] ifu_csr_idx,
   output [`XLEN-1:0]    ifu_csr_rdata
 );
+// ================================================================================================================================================
+// SIGNAL LIST
+// ================================================================================================================================================
+wire csr_ilgl = 1'b0;
+wire csr_wen = csr_ena & (~csr_ilgl) & csr_write;
+wire csr_ren = csr_ena & (~csr_ilgl) & csr_read;
 /*
 wire             sel_ustatus = (csr_idx == 12'h000);
 wire             ustatus_wen = sel_ustatus & csr_wen;
@@ -102,55 +108,48 @@ wire sel_itcmnohold = (csr_idx == 12'hBFD);
 wire sel_mdvnob2b = (csr_idx == 12'hBF0);
 
 */
-wire csr_wen = csr_ena & (~csr_ilgl) & csr_write;
-wire csr_ren = csr_ena & (~csr_ilgl) & csr_read;
-wire csr_ilgl = 1'b0;
-
 //0x300 MRW mstatus Machine status register.
-wire             sel_mstatus = (csr_idx == 12'h300);
-wire             sel_mstatus2= (csr_idx2 == 12'h300);
+wire             sel_mstatus = (csr_idx == `CSR_IDX'h300);
+wire             sel_mstatus2= (csr_idx2 == `CSR_IDX'h300);
 wire             mstatus_wen = (sel_mstatus | sel_mstatus2) & csr_wen;
 wire             mstatus_ren = sel_mstatus & csr_ren;
 wire [`XLEN-1:0] mstatus_wdata = sel_mstatus2 ? csr_wdata2 : csr_wdata;
 wire [`XLEN-1:0] csr_mstatus;
 //0x305 MRW mtvec Machine trap-handler base address.
-wire             sel_mtvec   = (csr_idx == 12'h305);
-wire             sel_mtvec2  = (csr_idx2 == 12'h305);
+wire             sel_mtvec   = (csr_idx == `CSR_IDX'h305);
+wire             sel_mtvec2  = (csr_idx2 == `CSR_IDX'h305);
 wire             mtvec_wen   = (sel_mtvec | sel_mtvec2) & csr_wen;
 wire             mtvec_ren   = sel_mtvec & csr_ren;
-wire             mtvec_ifren = ifu_csr_ren & (ifu_csr_idx == 12'h305);
+wire             mtvec_ifren = ifu_csr_ren & (ifu_csr_idx == `CSR_IDX'h305);
 wire [`XLEN-1:0] mtvec_wdata = sel_mtvec2 ? csr_wdata2 : csr_wdata;
 wire [`XLEN-1:0] csr_mtvec;
 //0x341 MRW mepc Machine exception program counter.
-wire             sel_mepc    = (csr_idx == 12'h341);
-wire             sel_mepc2   = (csr_idx2 == 12'h341);
+wire             sel_mepc    = (csr_idx == `CSR_IDX'h341);
+wire             sel_mepc2   = (csr_idx2 == `CSR_IDX'h341);
 wire             mepc_wen    = (sel_mepc | sel_mepc2) & csr_wen;
 wire             mepc_ren    = sel_mepc & csr_ren;
-wire             mepc_ifren  = ifu_csr_ren & (ifu_csr_idx == 12'h341);
+wire             mepc_ifren  = ifu_csr_ren & (ifu_csr_idx == `CSR_IDX'h341);
 wire [`XLEN-1:0] mepc_wdata  = sel_mepc2 ? csr_wdata2 : csr_wdata;
 wire [`XLEN-1:0] csr_mepc;
 //0x342 MRW mcause Machine trap cause.
-wire             sel_mcause  = (csr_idx == 12'h342);
-wire             sel_mcause2 = (csr_idx2 == 12'h342);
+wire             sel_mcause  = (csr_idx == `CSR_IDX'h342);
+wire             sel_mcause2 = (csr_idx2 == `CSR_IDX'h342);
 wire             mcause_wen  = (sel_mcause | sel_mcause2) & csr_wen;
 wire             mcause_ren  = sel_mcause & csr_ren;
 wire [`XLEN-1:0] mcause_wdata= sel_mcause2 ? csr_wdata2 : csr_wdata;
 wire [`XLEN-1:0] csr_mcause;
 
-lieat_general_dfflr #(32) mstatus_dff(clk,rstn,mstatus_wen,mstatus_wdata,csr_mstatus);
-lieat_general_dfflr #(32) mtvec_dff(clk,rstn,mtvec_wen,mtvec_wdata,csr_mtvec);
-lieat_general_dfflr #(32) mepc_dff(clk,rstn,mepc_wen,mepc_wdata,csr_mepc);
-lieat_general_dfflr #(32) mcause_dff(clk,rstn,mcause_wen,mcause_wdata,csr_mcause);
+lieat_general_dfflr #(`XLEN) mstatus_dff(clock,reset,mstatus_wen,mstatus_wdata,csr_mstatus);
+lieat_general_dfflr #(`XLEN) mtvec_dff(clock,reset,mtvec_wen,mtvec_wdata,csr_mtvec);
+lieat_general_dfflr #(`XLEN) mepc_dff(clock,reset,mepc_wen,mepc_wdata,csr_mepc);
+lieat_general_dfflr #(`XLEN) mcause_dff(clock,reset,mcause_wen,mcause_wdata,csr_mcause);
 
 assign csr_rdata = ({`XLEN{mstatus_ren}} & csr_mstatus) |
                    ({`XLEN{mtvec_ren  }} & csr_mtvec  ) |
                    ({`XLEN{mepc_ren   }} & csr_mepc   ) |
                    ({`XLEN{mcause_ren }} & csr_mcause ) ;
-assign ifu_csr_rdata = ({`XLEN{mepc_ifren}} & csr_mepc) | ({`XLEN{mtvec_ifren}} & csr_mtvec);
-
-import "DPI-C" function void etrace(input int csr_mstatus,input int csr_mtvec, input int csr_mepc, input int csr_mcause);
-always @(posedge clk or negedge rstn) begin
-  if(csr_ena)etrace(csr_mstatus,csr_mtvec,csr_mepc,csr_mcause);
-end
-
+                   
+assign ifu_csr_rdata = 
+({`XLEN{(ifu_csr_idx == `CSR_IDX'h305)}} & csr_mtvec) | 
+({`XLEN{(ifu_csr_idx == `CSR_IDX'h341)}} & csr_mepc)  ; 
 endmodule

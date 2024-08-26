@@ -1,94 +1,43 @@
-`include "vsrc/lieat_defines.v"
-`include "vsrc/lieat_ifu_bpuprdt.v"
-`include "vsrc/lieat_ifu_bpudec.v"
-module lieat_ifu_bpu(
-  input                    clk,
-  input                    rstn,
+module lieat_ifu_bpu # (
+  parameter INDEX_NUM  = 32,
+  parameter BHR_SIZE   = 2,
+  parameter PHT_SIZE   = 4
+)(
+  input       clock,
+  input       reset,
+  
+  input [4:0] index,
+  input       inst_bxx,
+  output      bxx_taken,
 
-  output [`XLEN-1:0]       pc,
-  input  [`XLEN-1:0]       inst,
-  output                   prdt_taken,
-
-  input                    ifetch_req,
-  input                    rst_req,
-  input                    flush_req,
-  input  [`XLEN-1:0]       flush_pc,
-
-  output [`RGIDX_SIZE-1:0] jalr_rs1,
-  input  [`XLEN-1:0]       jalr_src1,
-  input                    jalr_dep,
-  output                   jalr_need_wait,
-  output                   need_fencei,
-
-  input                    bxx_callback_result,
-  input  [4:0]             bxx_callback_index,
-  input                    bxx_callback_en,
-
-  output                   ifu_csr_ren,
-  output [11:0]            ifu_csr_idx,
-  input  [`XLEN-1:0]       ifu_csr_rdata
+  input       prdt_result,
+  input [4:0] prdt_index,
+  input       prdt_en
 );
-// ================================================================================================================================================
-// DECODE MODULE
-// ================================================================================================================================================
-wire inst_jal;
-wire inst_jalr;
-wire inst_bxx;
-wire inst_ecall;
-wire inst_mret;
-wire [`XLEN-1:0] imm_branch;
+reg [BHR_SIZE-1:0] pattern_history_table[INDEX_NUM-1:0][PHT_SIZE-1:0];//PHT
+reg [BHR_SIZE-1:0] branch_history_table[INDEX_NUM-1:0];//BHR
 
-lieat_ifu_decode decode(
-  .inst(inst),
-  .rs1(jalr_rs1),
-  .imm_branch(imm_branch),
-  .inst_jal(inst_jal),
-  .inst_jalr(inst_jalr),
-  .inst_bxx(inst_bxx),
-  .inst_ecall(inst_ecall),
-  .inst_mret(inst_mret),
-  .inst_fencei(need_fencei)
-);
-assign ifu_csr_ren = inst_ecall | inst_mret;
-assign ifu_csr_idx = inst_ecall ? 12'h305 : inst_mret ? 12'h341 : 12'h0;
-// ================================================================================================================================================
-//  PRDT MODULE
-// ================================================================================================================================================
-wire bxx_taken;
-wire [4:0] pc_index = pc[6:2];
+wire [BHR_SIZE-1:0] branch_history = branch_history_table[index];
+wire [BHR_SIZE-1:0] prdt_result_history = branch_history_table[prdt_index];
+assign bxx_taken = inst_bxx & pattern_history_table[index][branch_history][1];
 
-lieat_ifu_bpuprdt bpuprdt(
-  .clk(clk),
-  .rstn(rstn),
-  .index(pc_index),
-  .inst_bxx(inst_bxx),
-  .bxx_taken(bxx_taken),
-  .callback_result(bxx_callback_result),
-  .callback_index(bxx_callback_index),
-  .callback_en(bxx_callback_en)
-);
-
-lieat_ifu_agu agu(
-  .clk(clk),
-  .rst_req(rst_req),
-  .flush_req(flush_req),
-  .flush_pc(flush_pc),
-  .ifetch_req(ifetch_req),
-  .bxx_taken(bxx_taken),
-
-  .inst_jal(inst_jal),
-  .inst_jalr(inst_jalr),
-  .inst_bxx(inst_bxx),
-  .inst_ecall(inst_ecall),
-  .inst_mret(inst_mret),
-
-  .jalr_dep(jalr_dep),
-  .jalr_src1(jalr_src1),
-  .imm_branch(imm_branch),
-  .ifu_csr_rdata(ifu_csr_rdata),
-
-  .jalr_need_wait(jalr_need_wait),
-  .prdt_taken(prdt_taken),
-  .pc(pc)
-);
+always@(posedge clock or posedge reset) begin
+  if(reset)begin
+    for(int i = 0;i < INDEX_NUM; i = i + 1)begin
+      for(int j = 0; j < PHT_SIZE; j = j + 1)begin
+        pattern_history_table[i][j] <= 2'b01;
+      end
+      branch_history_table[i] <= 2'b00;
+    end
+  end
+  else if(prdt_en) begin
+    case (pattern_history_table[prdt_index][prdt_result_history])
+    2'b00: pattern_history_table[prdt_index][prdt_result_history] <= (prdt_result) ? 2'b01 : 2'b00;
+    2'b01: pattern_history_table[prdt_index][prdt_result_history] <= (prdt_result) ? 2'b10 : 2'b00;
+    2'b10: pattern_history_table[prdt_index][prdt_result_history] <= (prdt_result) ? 2'b11 : 2'b01;
+    2'b11: pattern_history_table[prdt_index][prdt_result_history] <= (prdt_result) ? 2'b11 : 2'b10;
+    endcase
+    branch_history_table[prdt_index] <= {branch_history[0],prdt_result};
+  end
+end
 endmodule

@@ -85,12 +85,11 @@ static int cmd_x(char *args) {
     printf("Error input.\n");
     return 0;
   }  
-  
   int i1,i2;
   for(i1 = 0; i1 < N ; i1++){
     printf("0x%x:\t",EXPR+i1*4);
     for(i2 = 0; i2 < 4; i2++){
-    printf("0x%02x\t",host_read(guest_to_host(EXPR+i1*4+i2),1));
+    printf("0x%02lx\t",host_read(guest_to_host(EXPR+i1*4+i2),1));
     }
     printf("\n");
   }

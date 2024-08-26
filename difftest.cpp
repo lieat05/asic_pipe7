@@ -44,7 +44,7 @@ void init_difftest(char *ref_so_file, long img_size)
   assert(ref_difftest_init);
   
   ref_difftest_init();
-  ref_difftest_memcpy(CONFIG_MBASE, guest_to_host(CONFIG_MBASE), img_size, DIFFTEST_TO_REF);
+  ref_difftest_memcpy(CONFIG_MBASE, guest_to_host(CONFIG_MBASE), CONFIG_MSIZE, DIFFTEST_TO_REF);
   ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);
   diff_img_size = img_size;
 }
@@ -67,6 +67,7 @@ void ref_difftest_regset(CPU_state *ref){
 }
 
 #ifdef CONFIG_DIFFTEST
+#ifdef CONFIG_DIFFTEST_SKIP
 void difftest_step() {
   if(is_diff_on){
   CPU_state ref_r;
@@ -92,6 +93,30 @@ void difftest_step() {
     checkregs(&ref_r, cpu.pc);
     }
 }
+#endif
+#ifdef CONFIG_DIFFTEST_EXEC
+void difftest_step() {
+  if(is_diff_on){
+  CPU_state ref_r;
+    if (diff_skip){
+      diff_onemoreskip = true;
+      ref_difftest_exec(1);
+      IFDEF(CONFIG_DIFTRACE,ref_difftest_regcpy(&ref_r, DIFFTEST_TO_DUT);printf("nemu.pc = %x npc.pc = %x\n",ref_r.pc,cpu.pc););
+      return;
+    }
+    if(diff_onemoreskip){
+      diff_onemoreskip = false;
+      ref_difftest_exec(1);
+      IFDEF(CONFIG_DIFTRACE,ref_difftest_regcpy(&ref_r, DIFFTEST_TO_DUT);printf("nemu.pc = %x npc.pc = %x\n",ref_r.pc,cpu.pc););
+      return;
+    }
+    ref_difftest_exec(1);
+    ref_difftest_regcpy(&ref_r, DIFFTEST_TO_DUT);
+    IFDEF(CONFIG_DIFTRACE,printf("nemu.pc = %x npc.pc = %x no skip\n",ref_r.pc,cpu.pc););
+    checkregs(&ref_r, cpu.pc);
+    }
+}
+#endif
 #endif
 #endif
 // ================================================================================================================================================

@@ -1,6 +1,15 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
+#include <verilated.h>
+#include <verilated_dpi.h>//DPI-C
+#include <verilated_vcd_c.h>//wave
+
+#include "../obj_dir/VysyxSoCFull.h"
+#include "isa.h"
+#include "utils.h"
+
+#include <assert.h>
 #include <cstdint>
 #include <cstdlib>
 #include <getopt.h>
@@ -14,26 +23,24 @@
 #define CONFIG_ISA "riscv32"
 #define CONFIG_ISA_riscv32 1
 #define CONFIG_ISA32 1
-#define CONFIG_MSIZE 0x8000000
-#define CONFIG_MBASE 0x80000000
+#define CONFIG_MSIZE 0x20000000
+#define CONFIG_MBASE 0x0f000000
+#define CONFIG_PCSTART 0x20000000
 #define PMEM_LEFT  ((uint32_t)CONFIG_MBASE)
 #define PMEM_RIGHT ((uint32_t)CONFIG_MBASE + CONFIG_MSIZE - 1)
-#define RESET_VECTOR 0x80000000
-
 // ================================================================================================================================================
 // TRACE_CONFIG
 // ================================================================================================================================================
-//#define CONFIG_MTRACE 1
-//#define CONFIG_ETRACE 1
-//#define CONFIG_DTRACE 1
 #define CONFIG_DIFFTEST 1
+#define CONFIG_DIFFTEST_EXEC 1
+//#define CONFIG_DIFFTEST_SKIP 1
 //#define CONFIG_DIFTRACE 1
 //#define CONFIG_WATCHPOINT 1
 #define CONFIG_WAVE
 // ================================================================================================================================================
 // DEVICE_CONFIG
 // ================================================================================================================================================
-#define CONFIG_DEVICE 1
+//#define CONFIG_DEVICE 1
 #ifdef CONFIG_DEVICE
 #define CONFIG_HAS_SERIAL 1
 #define CONFIG_SERIAL_MMIO 0xa00003f8

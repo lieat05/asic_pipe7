@@ -12,7 +12,7 @@ module lieat_axi_slave(
 
   output             io_slave_wready,
   input              io_slave_wvalid,
-  input  [31:0]      io_slave_wdata,
+  input  [63:0]      io_slave_wdata,
   input  [7:0]       io_slave_wstrb,
   input              io_slave_wlast,
 
@@ -32,7 +32,7 @@ module lieat_axi_slave(
   input              io_slave_rready,
   output             io_slave_rvalid,
   output [1:0]       io_slave_rresp,
-  output [31:0]      io_slave_rdata,
+  output [63:0]      io_slave_rdata,
   output             io_slave_rlast,
   output [3:0]       io_slave_rid,
   // ================================================================================================================================================
@@ -46,7 +46,7 @@ module lieat_axi_slave(
 
   input              sram_axi_rvalid,
   output             sram_axi_rready,
-  input  [`XLEN-1:0] sram_axi_rdata,
+  input  [63:0]      sram_axi_rdata,
   input  [3:0]       sram_axi_rid,
 
   output             sram_axi_awvalid,
@@ -57,7 +57,7 @@ module lieat_axi_slave(
 
   output             sram_axi_wvalid,
   input              sram_axi_wready,
-  output [`XLEN-1:0] sram_axi_wdata,
+  output [63:0]      sram_axi_wdata,
 
   input              sram_axi_bvalid,
   output             sram_axi_bready,

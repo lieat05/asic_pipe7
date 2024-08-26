@@ -1,18 +1,15 @@
-`include "vsrc/lieat_defines.v"
-`include "vsrc/lieat_general_dff.v"
-`include "vsrc/lieat_core.v"
-`include "vsrc/lieat_sram.v"
-`include "vsrc/lieat_axi_slave.v"
+`include "lieat_defines.v"
+`include "lieat_general_dff.v"
 module lieat_top(
-  input                     clk,
-  input                     rstn
+  input clock,
+  input reset
 );
 // ================================================================================================================================================
 // CORE
 // ================================================================================================================================================
 lieat_core core(
-  .clk(clk),
-  .rstn(rstn),
+  .clock(clock),
+  .reset(reset),
 
   .io_master_awready(io_master_awready),
   .io_master_awvalid(io_master_awvalid),
@@ -51,9 +48,9 @@ lieat_core core(
 // ================================================================================================================================================
 // SRAM
 // ================================================================================================================================================
-lieat_sram  #(0) sram(
-  .clk(clk),
-  .rstn(rstn),
+lieat_sram  #(2) sram(
+  .clock(clock),
+  .reset(reset),
   .sram_axi_arvalid(sram_axi_arvalid),
   .sram_axi_arready(sram_axi_arready),
   .sram_axi_araddr(sram_axi_araddr),
@@ -89,7 +86,7 @@ wire [1:0]  io_master_awburst;
 
 wire        io_master_wready;
 wire        io_master_wvalid;
-wire [31:0] io_master_wdata;
+wire [63:0] io_master_wdata;
 wire [7:0]  io_master_wstrb;
 wire        io_master_wlast;
 
@@ -109,7 +106,7 @@ wire [1:0]  io_master_arburst;
 wire        io_master_rready;
 wire        io_master_rvalid;
 wire [1:0]  io_master_rresp;
-wire [31:0] io_master_rdata;
+wire [63:0] io_master_rdata;
 wire        io_master_rlast;
 wire [3:0]  io_master_rid;
 
@@ -121,7 +118,7 @@ wire [2:0]  sram_axi_awsize;
 
 wire        sram_axi_wready;
 wire        sram_axi_wvalid;
-wire [31:0] sram_axi_wdata;
+wire [63:0] sram_axi_wdata;
 
 wire        sram_axi_bready;
 wire        sram_axi_bvalid;
@@ -136,7 +133,7 @@ wire [2:0]  sram_axi_arsize;
 
 wire        sram_axi_rready;
 wire        sram_axi_rvalid;
-wire [31:0] sram_axi_rdata;
+wire [63:0] sram_axi_rdata;
 wire [3:0]  sram_axi_rid;
 
 lieat_axi_slave axi_slave(
@@ -196,5 +193,4 @@ lieat_axi_slave axi_slave(
   .sram_axi_bresp(sram_axi_bresp),
   .sram_axi_bid(sram_axi_bid)
 );
-
 endmodule

@@ -1,69 +1,100 @@
 module lieat_exu_wbu(
-  input                     clk,
-  input                     rstn,
+  input                 clock,
+  input                 reset,
 
-  input                     com_wbck_valid,
-  output                    com_wbck_ready,
-  input [`XLEN-1:0]         com_wbck_pc,
-  input                     com_wbck_en,
-  input [`RGIDX_SIZE-1:0]   com_wbck_rd,
-  input [`XLEN-1:0]         com_wbck_data,
+  input                 com_wbck_valid,
+  output                com_wbck_ready,
+  input [`XLEN-1:0]     com_wbck_pc,
+  input                 com_wbck_en,
+  input [`REG_IDX-1:0]  com_wbck_rd,
+  input [`XLEN-1:0]     com_wbck_data,
+  input                 com_wbck_ebreak,
 
-  input                     lsu_wbck_valid,
-  output                    lsu_wbck_ready,
-  input [`XLEN-1:0]         lsu_wbck_pc,
-  input                     lsu_wbck_en,
-  input [`XLEN-1:0]         lsu_wbck_data,
-  input [`RGIDX_SIZE-1:0]   lsu_wbck_rd,
-  input                     lsu_wbck_mmio,
+  input                 lsu_wbck_valid,
+  output                lsu_wbck_ready,
+  input [`XLEN-1:0]     lsu_wbck_pc,
+  input                 lsu_wbck_en,
+  input [`XLEN-1:0]     lsu_wbck_data,
+  input [`REG_IDX-1:0]  lsu_wbck_rd,
+  input                 lsu_wbck_mmio,
 
-  input                     muldiv_wbck_valid,
-  output                    muldiv_wbck_ready,
-  input [`XLEN-1:0]         muldiv_wbck_pc,
-  input                     muldiv_wbck_en,
-  input [`XLEN-1:0]         muldiv_wbck_data,
-  input [`RGIDX_SIZE-1:0]   muldiv_wbck_rd,
+  input                 muldiv_wbck_valid,
+  output                muldiv_wbck_ready,
+  input [`XLEN-1:0]     muldiv_wbck_pc,
+  input                 muldiv_wbck_en,
+  input [`XLEN-1:0]     muldiv_wbck_data,
+  input [`REG_IDX-1:0]  muldiv_wbck_rd,
 
-  output                    longi_wbck,
-  output [1:0]              longi_wbck_op,
-  input                     oitf_waw_dep,
-
-  output                    wbck_o_valid,
-  output [`XLEN-1:0]        wbck_o_pc,
-  output                    wbck_o_en,
-  output [`RGIDX_SIZE-1:0]  wbck_o_rd,
-  output [`XLEN-1:0]        wbck_o_data,
-  output                    wbck_o_lsu
+  input                 oitf_waw_dep,
+  output                wbck_o_valid,
+  output [2:0]          wbck_o_op,
+  output [`XLEN-1:0]    wbck_o_pc,
+  output                wbck_o_en,
+  output [`REG_IDX-1:0] wbck_o_rd,
+  output [`XLEN-1:0]    wbck_o_data,
+  output                wbck_o_lsu,
+  output                wbck_o_ebreak
 );
-assign muldiv_wbck_ready = ~ignore_waw_dep;
-assign lsu_wbck_ready = ~muldiv_wbck_valid & ~ignore_waw_dep;
-assign com_wbck_ready = (~lsu_wbck_valid & ~muldiv_wbck_valid & ~oitf_waw_dep) | ignore_waw_dep;
+// ================================================================================================================================================
+// SIGNAL LIST
+// ================================================================================================================================================
+wire wbck_i_sh;
+wire wbck_i_valid;
+wire wbck_i_ready;
 
-wire ignore_waw_dep;
-wire ignore_waw_dep_set = ~oitf_waw_dep & com_wbck_valid & longi_wbck;
-wire ignore_waw_dep_clr = ignore_waw_dep;
-wire ignore_waw_dep_ena = ignore_waw_dep_set | ignore_waw_dep_clr;
-wire ignore_waw_dep_nxt = ignore_waw_dep_set & ~ignore_waw_dep_clr;
-lieat_general_dfflr #(1) ignore_waw_dep_dff(clk,rstn,ignore_waw_dep_ena,ignore_waw_dep_nxt,ignore_waw_dep);
+wire sel_muldiv = muldiv_wbck_valid;
+wire sel_lsu    = ~muldiv_wbck_valid & lsu_wbck_valid;
+wire sel_com    = ~muldiv_wbck_valid & ~lsu_wbck_valid & com_wbck_valid;
 
-assign longi_wbck   = lsu_wbck_valid | muldiv_wbck_valid;
-assign longi_wbck_op= ignore_waw_dep ? 2'b11 : muldiv_wbck_valid ? 2'b01 : lsu_wbck_valid ? 2'b00 : 2'b11;
-assign wbck_o_valid= (lsu_wbck_valid | ((com_wbck_valid & ~oitf_waw_dep) | ignore_waw_dep) | muldiv_wbck_valid);
-assign wbck_o_en   = ignore_waw_dep    ? com_wbck_en :
-                     muldiv_wbck_valid ? muldiv_wbck_en : 
-                     lsu_wbck_valid    ? lsu_wbck_en :
-                     com_wbck_valid    ? com_wbck_en : 1'b0;
-assign wbck_o_pc   = ignore_waw_dep    ? com_wbck_pc :
-                     muldiv_wbck_valid ? muldiv_wbck_pc : 
-                     lsu_wbck_valid    ? lsu_wbck_pc :
-                     com_wbck_valid    ? com_wbck_pc : `XLEN'b0;
-assign wbck_o_rd   = ignore_waw_dep    ? com_wbck_rd :
-                     muldiv_wbck_valid ? muldiv_wbck_rd : 
-                     lsu_wbck_valid    ? lsu_wbck_rd :
-                     com_wbck_valid    ? com_wbck_rd : `RGIDX_SIZE'b0;
-assign wbck_o_data = ignore_waw_dep    ? com_wbck_data    :
-                     muldiv_wbck_valid ? muldiv_wbck_data : 
-                     lsu_wbck_valid    ? lsu_wbck_data    :
-                     com_wbck_valid    ? com_wbck_data    : `XLEN'b0;
-assign wbck_o_lsu  = lsu_wbck_mmio & ~ignore_waw_dep & ~muldiv_wbck_valid & lsu_wbck_valid & lsu_wbck_en;
+wire wbck_i_en;
+wire [2:0] wbck_i_op;
+wire [`XLEN-1:0] wbck_i_data;
+wire [`XLEN-1:0] wbck_i_pc;//DPIC
+wire [`REG_IDX-1:0] wbck_i_rd;
+wire wbck_i_lsu;//DPIC
+wire wbck_i_ebreak;//DPIC
+// ================================================================================================================================================
+// WBU
+// ================================================================================================================================================
+assign wbck_i_sh    = wbck_i_valid & wbck_i_ready;
+assign wbck_i_ready = 1'b1;
+assign wbck_i_valid = lsu_wbck_valid | muldiv_wbck_valid | com_wbck_valid;
+assign muldiv_wbck_ready = 1'b1 /*& wbck_i_ready*/;
+assign lsu_wbck_ready    = ~muldiv_wbck_valid /*& wbck_i_ready*/;
+assign com_wbck_ready    = ~lsu_wbck_valid & ~muldiv_wbck_valid /*& wbck_i_ready*/;
+
+wire wbck_o_valid_set = wbck_i_sh;
+wire wbck_o_valid_clr = wbck_o_valid;
+wire wbck_o_valid_ena = wbck_o_valid_set | wbck_o_valid_clr;
+wire wbck_o_valid_nxt = wbck_o_valid_set | ~wbck_o_valid_clr;
+lieat_general_dfflr #(1) wbck_o_valid_dff(clock,reset,wbck_o_valid_ena,wbck_o_valid_nxt,wbck_o_valid);
+
+assign wbck_i_op    = {sel_muldiv,sel_lsu,sel_com};
+assign wbck_i_en    = 
+(sel_muldiv & muldiv_wbck_en) |
+(sel_lsu    & lsu_wbck_en   ) |
+(sel_com    & com_wbck_en   ) ;
+assign wbck_i_pc    = 
+({`XLEN{sel_muldiv}} & muldiv_wbck_pc) |
+({`XLEN{sel_lsu   }} & lsu_wbck_pc   ) |
+({`XLEN{sel_com   }} & com_wbck_pc   ) ;//DPIC
+assign wbck_i_rd    = 
+({`REG_IDX{sel_muldiv}} & muldiv_wbck_rd) |
+({`REG_IDX{sel_lsu   }} & lsu_wbck_rd   ) |
+({`REG_IDX{sel_com   }} & com_wbck_rd   ) ;
+assign wbck_i_data  = 
+({`XLEN{sel_muldiv}} & muldiv_wbck_data) |
+({`XLEN{sel_lsu   }} & lsu_wbck_data   ) |
+({`XLEN{sel_com   }} & com_wbck_data   ) ;
+assign wbck_i_lsu   = sel_lsu & lsu_wbck_mmio & lsu_wbck_en;
+assign wbck_i_ebreak= sel_com & com_wbck_ebreak;
+
+lieat_general_dfflr #(1) wbck_o_en_dff(clock,reset,wbck_i_sh,wbck_i_en,wbck_o_en);
+lieat_general_dfflr #(3) wbck_o_op_dff(clock,reset,wbck_i_sh,wbck_i_op,wbck_o_op);
+lieat_general_dfflr #(5) wbck_o_rd_dff(clock,reset,wbck_i_sh,wbck_i_rd,wbck_o_rd);
+lieat_general_dfflr #(`XLEN) wbck_o_data_dff(clock,reset,wbck_i_sh,wbck_i_data,wbck_o_data);
+lieat_general_dfflr #(1) wbck_o_lsu_dff(clock,reset,wbck_i_sh,wbck_i_lsu,wbck_o_lsu);//DPIC
+lieat_general_dfflr #(1) wbck_o_ebreak_dff(clock,reset,wbck_i_sh,wbck_i_ebreak,wbck_o_ebreak);//DPIC
+lieat_general_dfflr #(`XLEN) wbck_o_pc_dff(clock,reset,wbck_i_sh,wbck_i_pc,wbck_o_pc);//DPIC
+
 endmodule

@@ -1,4 +1,5 @@
-#include "common.h"
+#ifndef __UTILS_H__
+#define __UTILS_H__
 enum { NPC_RUNNING, NPC_STOP, NPC_END, NPC_ABORT, NPC_QUIT };
 
 typedef struct{
@@ -8,3 +9,4 @@ typedef struct{
 } NPC_State;
 
 extern NPC_State npc_state;
+#endif

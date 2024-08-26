@@ -3,9 +3,9 @@
 
 #include "common.h"
 
-uint32_t host_read(void *addr, int len);
+uint64_t host_read(void *addr, int len);
 
-void host_write(void *addr, int len, uint32_t data);
+void host_write(void *addr, int len, uint64_t data);
 
 uint8_t* guest_to_host(uint32_t paddr);
 

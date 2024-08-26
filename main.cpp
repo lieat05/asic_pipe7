@@ -1,45 +1,35 @@
-#include "verilated.h"
-#include "verilated_vcd_c.h"//wave
-#include "obj_dir/Vlieat_top.h"
-#include "verilated_dpi.h"//DPI-C
-#include <assert.h>
-#include "include/isa.h"
-#include "include/utils.h"
-
-static Vlieat_top* top;
+#include "common.h"
+static VysyxSoCFull* top;
 VerilatedContext* contextp = NULL;
 
 //wave tfp
 VerilatedVcdC* tfp = NULL;
 
 void cpu_init() {
-  top -> clk = 0;
-  top -> rstn = 1;
-  top -> eval();
-  tfp -> dump(contextp->time());
-  contextp->timeInc(1);
-  top -> clk = 1;
-  top -> rstn = 0;
-  top -> eval();
-  tfp -> dump(contextp->time());
-  contextp->timeInc(1);
-  top -> clk = 0;
-  top -> eval();
-  tfp -> dump(contextp->time());
-  contextp->timeInc(1);
-  top -> clk = 1;
-  top -> rstn = 1;
+  top -> reset = 1;
+  for(int a = 0; a < 10; a++){
+    top -> clock = 0;
+    top -> eval();
+    tfp -> dump(contextp->time());
+    contextp->timeInc(1);
+    top -> clock = 1;
+    top -> eval();
+    tfp -> dump(contextp->time());
+    contextp->timeInc(1);
+  }
+  top -> reset = 0;
+  top -> clock = 0;
   top -> eval();
   tfp -> dump(contextp->time());
   contextp->timeInc(1);
 }
 
 void isa_exec_once() {
-  top -> clk = 0;
+  top -> clock = 1;
   top -> eval();
   tfp -> dump(contextp->time());
   contextp->timeInc(1);
-  top -> clk = 1;
+  top -> clock = 0;
   top -> eval(); 
   tfp -> dump(contextp->time());
   contextp->timeInc(1);
@@ -47,9 +37,10 @@ void isa_exec_once() {
 
 
 int main(int argc, char* argv[]) {
+  Verilated::commandArgs(argc, argv);
   contextp = new VerilatedContext;
   contextp -> commandArgs(argc,argv);
-  top = new Vlieat_top{contextp};
+  top = new VysyxSoCFull{contextp};
   tfp = new VerilatedVcdC;
   #ifdef CONFIG_WAVE
   Verilated::traceEverOn(true);
@@ -67,13 +58,9 @@ int main(int argc, char* argv[]) {
 
 // ================================================================================================================================================
 // DPI-C
-// ================================================================================================================================================
-extern "C" void uart_write(int data){
-	putchar(data);
-}
-  
-extern "C" void ebreak(int halt_pc){
+// ================================================================================================================================================  
+extern "C" void ebreak(int halt_pc, int halt_ret){
 	npc_state.halt_pc = halt_pc;
+	npc_state.halt_ret = halt_ret;
 	npc_state.state = NPC_END;
 }
-
